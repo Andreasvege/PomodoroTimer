@@ -1,26 +1,254 @@
 @import "tailwindcss";
 
+/* ─── 1970s Earth Tone Palette ─── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:        #C8B898;
+  --surface:   #CCC0A4;
+  --brown-dk:  #2A1208;
+  --brown-md:  #5A3018;
+  --brown-lt:  #8A6038;
+  --orange:    #C04818;
+  --mustard:   #C08A0A;
+  --avocado:   #708030;
+  --rust:      #A03020;
+  --cream:     #F0E0C0;
+  --text:      #2A1208;
+  --muted:     #7A5830;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ─── Base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background-color: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-space-mono), 'Courier New', monospace;
+  color: var(--text);
+  min-height: 100svh;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ─── Layout ─── */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  gap: 1.4rem;
+  padding: 2rem 1.5rem;
+  background-color: var(--bg);
+}
+
+/* ─── Top stripe ─── */
+.stripe-bar {
+  width: 100%;
+  max-width: 510px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 1.5rem;
+  background: #CC7E0A;
+  border-radius: 2px;
+}
+.stripe-label {
+  font-family: var(--font-righteous), sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  color: var(--cream);
+}
+
+/* ─── Mode nav ─── */
+.mode-nav {
+  display: flex;
+  gap: 0.4rem;
+}
+.mode-tab {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  padding: 0.45rem 1.2rem;
+  border: 1.5px solid var(--brown-lt);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+.mode-tab:hover {
+  border-color: var(--brown-md);
+  color: var(--brown-dk);
+}
+.mode-tab--on {
+  border-color: var(--tab-color, var(--orange));
+  color: var(--tab-color, var(--orange));
+  background: color-mix(in srgb, var(--tab-color, var(--orange)) 10%, transparent);
+}
+
+/* ─── Clock ─── */
+.clock-shell {
+  position: relative;
+  width: 486px;
+  height: 486px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 12px 34px rgba(42, 18, 8, 0.42));
+}
+.clock-shell svg { display: block; }
+
+.ambient-glow {
+  animation: glow-pulse 2.4s ease-in-out infinite;
+}
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.85; }
+}
+
+/* ─── Time overlay ─── */
+.time-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.time-numeral {
+  font-family: var(--font-righteous), sans-serif;
+  font-size: 4.3rem;
+  font-weight: 400;
+  color: #F0E0C0;
+  line-height: 1;
+  /* no flex — inline-block children maintain natural text flow */
+}
+/* Fixed-width digit containers: 0.62em ≈ width of widest glyph in Righteous */
+.digit {
+  display: inline-block;
+  width: 0.62em;
+  text-align: center;
+}
+.colon {
+  display: inline-block;
+  width: 0.28em;
+  text-align: center;
+  position: relative;
+  top: -2px;
+}
+
+.time-tick-a, .time-tick-b {
+  animation: tick-nudge 0.16s ease-out;
+}
+@keyframes tick-nudge {
+  0%   { transform: scale(1.014); }
+  100% { transform: scale(1); }
+}
+
+.time-flash {
+  animation: done-flash 0.85s ease-in-out 4;
+}
+@keyframes done-flash {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+.time-sub {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.28em;
+  margin-top: 0.6rem;
+  color: var(--cream);
+  opacity: 0.6;
+  transition: color 0.3s;
+}
+
+/* ─── Controls ─── */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-reset {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--brown-lt);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.btn-reset:hover {
+  border-color: var(--brown-md);
+  color: var(--brown-dk);
+}
+.btn-reset:active { transform: scale(0.9); }
+
+.btn-main {
+  font-family: var(--font-righteous), sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  padding: 0.85rem 3.5rem;
+  border: none;
+  border-radius: 3px;
+  background: var(--orange);
+  color: var(--cream);
+  cursor: pointer;
+  box-shadow: 0 3px 0 #7A2A08, 0 4px 12px rgba(42,18,8,0.25);
+  transition: background 0.18s, box-shadow 0.1s, transform 0.1s;
+}
+.btn-main:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--orange) 85%, #fff);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #7A2A08, 0 6px 16px rgba(42,18,8,0.3);
+}
+.btn-main:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #7A2A08, 0 2px 6px rgba(42,18,8,0.2);
+}
+.btn-main--active {
+  background: var(--btn-color, var(--orange)) !important;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--btn-color, var(--orange)) 50%, #000),
+              0 4px 12px rgba(42,18,8,0.25) !important;
+}
+.btn-main--done {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ─── Session block ─── */
+.session-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.session-dots {
+  display: flex;
+  gap: 0.75rem;
+}
+.session-pip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--brown-md);
+  background: transparent;
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+.session-pip--on {
+  box-shadow: 0 0 8px rgba(212,160,32,0.45);
+}
+.session-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.7;
 }
