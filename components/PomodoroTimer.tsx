@@ -180,6 +180,7 @@ export default function PomodoroTimer() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const skipBlurRef = useRef(false)
   const settingsRef = useRef<HTMLDivElement | null>(null)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   // Refs mirror state so the auto-advance closure always sees current values.
   const alertsOnRef = useRef(alertsOn); alertsOnRef.current = alertsOn
@@ -364,6 +365,35 @@ export default function PomodoroTimer() {
     const t = setTimeout(advance, 1600)
     return () => clearTimeout(t)
   }, [flash, autoAdvance, advance])
+
+  // Keep the screen awake while running. The lock is auto-dropped when the tab
+  // is hidden, so re-acquire it when the tab becomes visible again.
+  useEffect(() => {
+    if (!isRunning) return
+    let cancelled = false
+
+    async function acquire() {
+      try {
+        if ('wakeLock' in navigator && document.visibilityState === 'visible' && !wakeLockRef.current) {
+          const lock = await navigator.wakeLock.request('screen')
+          if (cancelled) { void lock.release(); return }
+          wakeLockRef.current = lock
+        }
+      } catch { /* wake lock unavailable or denied — ignore */ }
+    }
+    function onVisible() {
+      if (document.visibilityState === 'visible') void acquire()
+    }
+
+    void acquire()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
+      void wakeLockRef.current?.release().catch(() => {})
+      wakeLockRef.current = null
+    }
+  }, [isRunning])
 
   // Keyboard: Space = start/pause, R = reset. Ignored while typing.
   useEffect(() => {
