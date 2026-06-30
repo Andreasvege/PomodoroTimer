@@ -191,6 +191,11 @@ body {
 }
 .btn-reset:active { transform: scale(0.9); }
 
+/* Bell matches the reset button; only the icon softens at rest, not the border. */
+.btn-alert svg { opacity: 0.87; transition: opacity 0.18s; }
+.btn-alert:hover svg,
+.btn-alert:active svg { opacity: 1; }
+
 .btn-main {
   font-family: var(--font-righteous), sans-serif;
   font-size: 1rem;

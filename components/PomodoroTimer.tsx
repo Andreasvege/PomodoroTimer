@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { playChime, showNotification, requestNotificationPermission } from '@/lib/alerts'
 
 type Mode = 'work' | 'shortBreak' | 'longBreak'
 
@@ -25,6 +26,28 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
+// Hugeicons-style line icons, drawn with currentColor so they inherit button state.
+function BellIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 2.5V4" />
+      <path d="M6.5 9.5C6.5 6.46 8.96 4 12 4s5.5 2.46 5.5 5.5c0 3.5 1 5.5 2.5 7H4c1.5-1.5 2.5-3.5 2.5-7Z" />
+      <path d="M9.5 16.5a2.5 2.5 0 0 0 5 0" />
+      {muted && <path d="M3.5 3.5l17 17" />}
+    </svg>
+  )
+}
+
 export default function PomodoroTimer() {
   const [mode, setMode] = useState<Mode>('work')
   const [timeLeft, setTimeLeft] = useState(DURATIONS.work)
@@ -32,7 +55,10 @@ export default function PomodoroTimer() {
   const [sessions, setSessions] = useState(0)
   const [flash, setFlash] = useState(false)
   const [tickParity, setTickParity] = useState(false)
+  const [alertsOn, setAlertsOn] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const alertsOnRef = useRef(alertsOn)
+  alertsOnRef.current = alertsOn
 
   const total = DURATIONS[mode]
   const progress = 1 - timeLeft / total
@@ -69,11 +95,25 @@ export default function PomodoroTimer() {
     return stop
   }, [isRunning, stop, mode])
 
+  // Load persisted alert preference after mount (avoids hydration mismatch).
+  useEffect(() => {
+    const saved = localStorage.getItem('pomodoro-alerts')
+    if (saved !== null) setAlertsOn(saved === '1')
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('pomodoro-alerts', alertsOn ? '1' : '0')
+  }, [alertsOn])
+
   useEffect(() => {
     if (!flash) return
+    if (alertsOnRef.current) {
+      playChime(mode)
+      showNotification(mode)
+    }
     const t = setTimeout(() => setFlash(false), 4000)
     return () => clearTimeout(t)
-  }, [flash])
+  }, [flash, mode])
 
   function changeMode(m: Mode) {
     stop()
@@ -94,6 +134,14 @@ export default function PomodoroTimer() {
     setIsRunning(false)
     setTimeLeft(DURATIONS[mode])
     setFlash(false)
+  }
+
+  function toggleAlerts() {
+    setAlertsOn(on => {
+      const next = !on
+      if (next) void requestNotificationPermission()
+      return next
+    })
   }
 
   return (
@@ -196,6 +244,14 @@ export default function PomodoroTimer() {
           disabled={timeLeft === 0}
         >
           {isRunning ? 'Pause' : timeLeft === 0 ? 'Done' : 'Start'}
+        </button>
+        <button
+          className="btn-reset btn-alert"
+          onClick={toggleAlerts}
+          aria-label={alertsOn ? 'Mute alerts' : 'Unmute alerts'}
+          title={alertsOn ? 'Alerts on' : 'Alerts off'}
+        >
+          <BellIcon muted={!alertsOn} />
         </button>
       </div>
 
