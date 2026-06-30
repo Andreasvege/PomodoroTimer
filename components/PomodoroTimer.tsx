@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { playChime, showNotification, requestNotificationPermission } from '@/lib/alerts'
+import { playChime, showNotification, requestNotificationPermission, warmUpAudio } from '@/lib/alerts'
 
 type Mode = 'work' | 'shortBreak' | 'longBreak'
 
@@ -17,7 +17,7 @@ const MODE_CONFIG: Record<Mode, { label: string; short: string; arc: string; glo
   longBreak:  { label: 'Long Rest',   short: 'Rest',   arc: '#C04818', glow: 'rgba(192,72,24,0.18)' },
 }
 
-const SESSIONS_PER_ROUND = 4
+const DEFAULT_ROUND = 4
 const C = 160
 const RADIUS = 120
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
@@ -104,6 +104,62 @@ function AutoIcon() {
   )
 }
 
+// Gear — opens the settings popover.
+function GearIcon() {
+  return (
+    <svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx={12} cy={12} r={3} />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+    </svg>
+  )
+}
+
+// Skip to the next session.
+function SkipIcon() {
+  return (
+    <svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 5l8 7-8 7V5Z" />
+      <path d="M18 5v14" />
+    </svg>
+  )
+}
+
+// Sliding on/off switch used in the settings panel.
+function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onClick}
+      className={`toggle${on ? ' toggle--on' : ''}`}
+    >
+      <span className="toggle-knob" />
+    </button>
+  )
+}
+
 export default function PomodoroTimer() {
   const [mode, setMode] = useState<Mode>('work')
   const [durations, setDurations] = useState<Record<Mode, number>>(DEFAULT_DURATIONS)
@@ -118,15 +174,19 @@ export default function PomodoroTimer() {
   const [task, setTask] = useState('')
   const [editing, setEditing] = useState(false)
   const [draftMin, setDraftMin] = useState('')
+  const [roundLength, setRoundLength] = useState(DEFAULT_ROUND)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const skipBlurRef = useRef(false)
+  const settingsRef = useRef<HTMLDivElement | null>(null)
 
   // Refs mirror state so the auto-advance closure always sees current values.
   const alertsOnRef = useRef(alertsOn); alertsOnRef.current = alertsOn
   const modeRef = useRef(mode); modeRef.current = mode
   const sessionsRef = useRef(sessions); sessionsRef.current = sessions
   const durationsRef = useRef(durations); durationsRef.current = durations
+  const roundLengthRef = useRef(roundLength); roundLengthRef.current = roundLength
 
   const total = durations[mode]
   const progress = 1 - timeLeft / total
@@ -135,8 +195,8 @@ export default function PomodoroTimer() {
 
   const mins = Math.floor(timeLeft / 60)
   const secs = timeLeft % 60
-  const sessionsFilled = sessions % SESSIONS_PER_ROUND
-  const totalRounds = Math.floor(sessions / SESSIONS_PER_ROUND) + 1
+  const sessionsFilled = sessions % roundLength
+  const totalRounds = Math.floor(sessions / roundLength) + 1
 
   const stop = useCallback(() => {
     if (intervalRef.current) {
@@ -214,6 +274,24 @@ export default function PomodoroTimer() {
     localStorage.setItem('pomodoro-durations', JSON.stringify(durations))
   }, [durations])
 
+  useEffect(() => {
+    const saved = localStorage.getItem('pomodoro-round')
+    if (saved !== null) {
+      const n = parseInt(saved, 10)
+      if (Number.isFinite(n) && n >= 2 && n <= 8) setRoundLength(n)
+    }
+  }, [])
+  useEffect(() => {
+    localStorage.setItem('pomodoro-round', String(roundLength))
+  }, [roundLength])
+
+  // Live countdown in the tab title so it's useful in a background tab.
+  useEffect(() => {
+    if (flash) document.title = `✓ ${cfg.label} done`
+    else if (isRunning) document.title = `${pad(mins)}:${pad(secs)} · ${cfg.label}`
+    else document.title = 'Pomodoro Timer'
+  }, [flash, isRunning, mins, secs, cfg.label])
+
   // Session-end chime + notification.
   useEffect(() => {
     if (!flash) return
@@ -236,6 +314,7 @@ export default function PomodoroTimer() {
 
   const toggle = useCallback(() => {
     if (timeLeft === 0) return
+    warmUpAudio() // unlock audio from this gesture so auto-advance chimes can play
     setIsRunning(r => !r)
     setFlash(false)
   }, [timeLeft])
@@ -252,13 +331,32 @@ export default function PomodoroTimer() {
   const advance = useCallback(() => {
     const completed = modeRef.current
     const next: Mode = completed === 'work'
-      ? (sessionsRef.current % SESSIONS_PER_ROUND === 0 ? 'longBreak' : 'shortBreak')
+      ? (sessionsRef.current % roundLengthRef.current === 0 ? 'longBreak' : 'shortBreak')
       : 'work'
     setMode(next)
     setTimeLeft(durationsRef.current[next])
     setFlash(false)
     setIsRunning(true)
   }, [])
+
+  // Manual skip to the next session (paused). Skipping a focus session counts
+  // it toward the round so the dots and long-break cadence stay in sync.
+  const skip = useCallback(() => {
+    let next: Mode
+    if (modeRef.current === 'work') {
+      const nextSessions = sessionsRef.current + 1
+      setSessions(nextSessions)
+      next = nextSessions % roundLengthRef.current === 0 ? 'longBreak' : 'shortBreak'
+    } else {
+      next = 'work'
+    }
+    stop()
+    setMode(next)
+    setTimeLeft(durationsRef.current[next])
+    setIsRunning(false)
+    setFlash(false)
+    setEditing(false)
+  }, [stop])
 
   // When a session ends and auto-advance is on, roll into the next one.
   useEffect(() => {
@@ -282,6 +380,25 @@ export default function PomodoroTimer() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [toggle, reset])
+
+  // Close the settings popover on outside click or Escape.
+  useEffect(() => {
+    if (!settingsOpen) return
+    function onPointer(e: MouseEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false)
+      }
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSettingsOpen(false)
+    }
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('keydown', onEsc)
+    return () => {
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('keydown', onEsc)
+    }
+  }, [settingsOpen])
 
   function toggleAlerts() {
     setAlertsOn(on => {
@@ -315,6 +432,58 @@ export default function PomodoroTimer() {
 
   return (
     <div className="wrapper">
+
+      {/* Floating settings — fixed to the top-right corner */}
+      <div className="settings" ref={settingsRef}>
+        <button
+          className="settings-gear"
+          onClick={() => setSettingsOpen(o => !o)}
+          aria-label="Settings"
+          aria-expanded={settingsOpen}
+          title="Settings"
+        >
+          <GearIcon />
+        </button>
+        {settingsOpen && (
+          <div className="settings-panel" role="dialog" aria-label="Settings">
+            <div className="settings-toggle-row">
+              <span className="settings-toggle-label"><BellIcon muted={!alertsOn} /> Sound</span>
+              <Toggle on={alertsOn} onClick={toggleAlerts} label="Sound" />
+            </div>
+            <div className="settings-toggle-row">
+              <span className="settings-toggle-label"><ThemeIcon dark={dark} /> Dark mode</span>
+              <Toggle on={dark} onClick={() => setDark(d => !d)} label="Dark mode" />
+            </div>
+            <div className="settings-toggle-row">
+              <span className="settings-toggle-label"><AutoIcon /> Auto-advance</span>
+              <Toggle on={autoAdvance} onClick={() => setAutoAdvance(a => !a)} label="Auto-advance" />
+            </div>
+            <div className="settings-divider" />
+            <label className="settings-row">
+              <span>Long break after</span>
+              <span className="settings-control">
+                <input
+                  type="number"
+                  min={2}
+                  max={8}
+                  value={roundLength}
+                  onChange={e => {
+                    const n = parseInt(e.target.value, 10)
+                    if (Number.isFinite(n)) setRoundLength(Math.min(8, Math.max(2, n)))
+                  }}
+                />
+                <span className="settings-unit">focus sessions</span>
+              </span>
+            </label>
+            <button
+              className="settings-action"
+              onClick={() => { setSessions(0); setSettingsOpen(false) }}
+            >
+              Reset progress
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Top stripe bar — 70s graphic element */}
       <div className="stripe-bar">
@@ -417,7 +586,7 @@ export default function PomodoroTimer() {
               <span className="digit">{pad(secs)[1]}</span>
             </div>
           )}
-          <p className="time-sub" style={{ color: cfg.arc }}>
+          <p className="time-sub" style={{ color: cfg.arc }} role="status" aria-live="polite">
             {flash ? 'Complete' : cfg.label}
           </p>
         </div>
@@ -434,17 +603,8 @@ export default function PomodoroTimer() {
         onChange={e => setTask(e.target.value)}
       />
 
-      {/* Controls — Start/Pause centered, two small buttons flanking each side */}
+      {/* Controls — Start/Pause centered, reset left, skip right */}
       <div className="controls">
-        <button
-          className={`btn-reset btn-icon${autoAdvance ? ' btn-auto--on' : ''}`}
-          onClick={() => setAutoAdvance(a => !a)}
-          aria-pressed={autoAdvance}
-          aria-label={autoAdvance ? 'Auto-advance on' : 'Auto-advance off'}
-          title={autoAdvance ? 'Auto-advance: on' : 'Auto-advance: off'}
-        >
-          <AutoIcon />
-        </button>
         <button className="btn-reset" onClick={reset} aria-label="Reset" title="Reset (R)">↺</button>
         <button
           className={`btn-main${isRunning ? ' btn-main--active' : ''}${timeLeft === 0 ? ' btn-main--done' : ''}`}
@@ -457,25 +617,17 @@ export default function PomodoroTimer() {
         </button>
         <button
           className="btn-reset btn-icon"
-          onClick={toggleAlerts}
-          aria-label={alertsOn ? 'Mute alerts' : 'Unmute alerts'}
-          title={alertsOn ? 'Alerts on' : 'Alerts off'}
+          onClick={skip}
+          aria-label="Skip to next session"
+          title="Skip to next session"
         >
-          <BellIcon muted={!alertsOn} />
-        </button>
-        <button
-          className="btn-reset btn-icon"
-          onClick={() => setDark(d => !d)}
-          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={dark ? 'Light mode' : 'Dark mode'}
-        >
-          <ThemeIcon dark={dark} />
+          <SkipIcon />
         </button>
       </div>
 
       <div className="session-block">
         <div className="session-dots">
-          {Array.from({ length: SESSIONS_PER_ROUND }).map((_, i) => (
+          {Array.from({ length: roundLength }).map((_, i) => (
             <div
               key={i}
               className={`session-pip${i < sessionsFilled ? ' session-pip--on' : ''}`}

@@ -46,6 +46,17 @@ function playTone(ctx: AudioContext, freq: number, start: number, duration: numb
   osc.stop(start + duration)
 }
 
+// Unlock/resume the AudioContext from a user gesture (e.g. the Start click) so
+// chimes fired later without a gesture — like auto-advance — aren't blocked.
+export function warmUpAudio(): void {
+  try {
+    const ctx = getAudioContext()
+    if (ctx && ctx.state === 'suspended') void ctx.resume()
+  } catch {
+    // No audio available — stay silent.
+  }
+}
+
 export function playChime(mode: Mode): void {
   try {
     const ctx = getAudioContext()
