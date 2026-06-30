@@ -26,6 +26,11 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
+// Local calendar day, so the daily stat rolls over at the user's midnight.
+function localDateString(d = new Date()) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 function isValidDurations(d: unknown): d is Record<Mode, number> {
   if (!d || typeof d !== 'object') return false
   const r = d as Record<string, unknown>
@@ -176,6 +181,8 @@ export default function PomodoroTimer() {
   const [draftMin, setDraftMin] = useState('')
   const [roundLength, setRoundLength] = useState(DEFAULT_ROUND)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [todayCount, setTodayCount] = useState(0)
+  const todayDateRef = useRef('')
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const skipBlurRef = useRef(false)
@@ -206,6 +213,19 @@ export default function PomodoroTimer() {
     }
   }, [])
 
+  // Record one completed focus session against today's date (rolls at midnight).
+  const bumpToday = useCallback(() => {
+    const today = localDateString()
+    setTodayCount(prev => {
+      const next = todayDateRef.current === today ? prev + 1 : 1
+      todayDateRef.current = today
+      try {
+        localStorage.setItem('pomodoro-stats', JSON.stringify({ date: today, count: next }))
+      } catch { /* storage unavailable — keep in-memory count */ }
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     if (!isRunning) { stop(); return }
     intervalRef.current = setInterval(() => {
@@ -215,14 +235,14 @@ export default function PomodoroTimer() {
           stop()
           setIsRunning(false)
           setFlash(true)
-          if (mode === 'work') setSessions(s => s + 1)
+          if (mode === 'work') { setSessions(s => s + 1); bumpToday() }
           return 0
         }
         return prev - 1
       })
     }, 1000)
     return stop
-  }, [isRunning, stop, mode])
+  }, [isRunning, stop, mode, bumpToday])
 
   // ── Persistence: each pref loads after mount (avoids hydration mismatch),
   //    then a paired effect writes it back on change. ──
@@ -285,6 +305,19 @@ export default function PomodoroTimer() {
   useEffect(() => {
     localStorage.setItem('pomodoro-round', String(roundLength))
   }, [roundLength])
+
+  // Load today's focus-session count; a saved count from a prior day stays 0.
+  useEffect(() => {
+    const today = localDateString()
+    todayDateRef.current = today
+    const saved = localStorage.getItem('pomodoro-stats')
+    if (saved) {
+      try {
+        const p = JSON.parse(saved)
+        if (p && p.date === today && typeof p.count === 'number') setTodayCount(p.count)
+      } catch { /* ignore corrupt value */ }
+    }
+  }, [])
 
   // Live countdown in the tab title so it's useful in a background tab.
   useEffect(() => {
@@ -668,6 +701,11 @@ export default function PomodoroTimer() {
         <p className="session-label">
           {totalRounds > 1 ? `round ${totalRounds}` : 'sessions'}
         </p>
+        {todayCount > 0 && (
+          <p className="today-stat">
+            {todayCount} focus session{todayCount === 1 ? '' : 's'} today
+          </p>
+        )}
       </div>
     </div>
   )
