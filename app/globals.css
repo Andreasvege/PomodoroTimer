@@ -473,6 +473,16 @@ input:focus-visible,
 }
 .btn-main:focus-visible { outline-offset: 4px; }
 
+/* ─── Reduced motion: drop non-essential animation ─── */
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glow { animation: none; }
+  .time-tick-a, .time-tick-b { animation: none; }
+  .time-flash { animation: none; }
+  .settings-gear[aria-expanded="true"] { transform: none; }
+  html, body { transition: none; }
+  .toggle, .toggle-knob, .settings-gear { transition: none; }
+}
+
 /* ─── Small screens ─── */
 @media (max-width: 520px) {
   .wrapper { gap: 1.1rem; padding: 1.5rem 1rem; }
