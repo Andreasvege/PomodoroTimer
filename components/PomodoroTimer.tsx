@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { playChime, showNotification, requestNotificationPermission, warmUpAudio } from '@/lib/alerts'
-
-type Mode = 'work' | 'shortBreak' | 'longBreak'
+import { pad, localDateString, isValidDurations, nextMode, clampMinutes, clampRound, type Mode } from '@/lib/pomodoro'
 
 const DEFAULT_DURATIONS: Record<Mode, number> = {
   work: 25 * 60,
@@ -21,23 +20,6 @@ const DEFAULT_ROUND = 4
 const C = 160
 const RADIUS = 120
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
-
-function pad(n: number) {
-  return String(n).padStart(2, '0')
-}
-
-// Local calendar day, so the daily stat rolls over at the user's midnight.
-function localDateString(d = new Date()) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-function isValidDurations(d: unknown): d is Record<Mode, number> {
-  if (!d || typeof d !== 'object') return false
-  const r = d as Record<string, unknown>
-  return ['work', 'shortBreak', 'longBreak'].every(
-    k => typeof r[k] === 'number' && Number.isFinite(r[k] as number) && (r[k] as number) > 0,
-  )
-}
 
 // Hugeicons-style line icons, drawn with currentColor so they inherit button state.
 function BellIcon({ muted }: { muted: boolean }) {
@@ -460,10 +442,7 @@ export default function PomodoroTimer() {
 
   // Advance to the next session in the Pomodoro cycle and auto-start it.
   const advance = useCallback(() => {
-    const completed = modeRef.current
-    const next: Mode = completed === 'work'
-      ? (sessionsRef.current % roundLengthRef.current === 0 ? 'longBreak' : 'shortBreak')
-      : 'work'
+    const next = nextMode(modeRef.current, sessionsRef.current, roundLengthRef.current)
     setMode(next)
     setTimeLeft(durationsRef.current[next])
     setFlash(false)
@@ -477,9 +456,9 @@ export default function PomodoroTimer() {
     if (modeRef.current === 'work') {
       const nextSessions = sessionsRef.current + 1
       setSessions(nextSessions)
-      next = nextSessions % roundLengthRef.current === 0 ? 'longBreak' : 'shortBreak'
+      next = nextMode('work', nextSessions, roundLengthRef.current)
     } else {
-      next = 'work'
+      next = nextMode(modeRef.current, sessionsRef.current, roundLengthRef.current)
     }
     stop()
     setMode(next)
@@ -593,8 +572,7 @@ export default function PomodoroTimer() {
     setEditing(false)
     const m = parseInt(draftMin, 10)
     if (!Number.isFinite(m)) return
-    const clamped = Math.min(99, Math.max(1, m))
-    const secs = clamped * 60
+    const secs = clampMinutes(m) * 60
     setDurations(d => ({ ...d, [mode]: secs }))
     setTimeLeft(secs)
   }
@@ -651,7 +629,7 @@ export default function PomodoroTimer() {
                   value={roundLength}
                   onChange={e => {
                     const n = parseInt(e.target.value, 10)
-                    if (Number.isFinite(n)) setRoundLength(Math.min(8, Math.max(2, n)))
+                    if (Number.isFinite(n)) setRoundLength(clampRound(n))
                   }}
                 />
                 <span className="settings-unit">focus sessions</span>

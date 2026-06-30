@@ -3,7 +3,10 @@
 # Pomodoro Timer — Project State
 
 ## What it is
-A 70s-inspired Pomodoro timer built with Next.js (App Router), TypeScript, and Tailwind CSS v4. Main component at `components/PomodoroTimer.tsx`, sound/notification logic in `lib/alerts.ts`, styles in `app/globals.css`.
+A 70s-inspired Pomodoro timer built with Next.js (App Router), TypeScript, and Tailwind CSS v4. Main component at `components/PomodoroTimer.tsx`, sound/notification logic in `lib/alerts.ts`, pure timer helpers in `lib/pomodoro.ts` (unit-tested), styles in `app/globals.css`.
+
+## Testing
+Pure logic lives in `lib/pomodoro.ts` (`pad`, `localDateString`, `isValidDurations`, `nextMode`, `clampMinutes`, `clampRound`) and is covered by `lib/pomodoro.test.ts`. Run with `npm test` (Vitest). Keep testable logic in this module rather than inline in the component.
 
 ## Design language
 - **Palette**: warm beige background (`#C8B898`), charcoal clock face (`#1C1A18`), earth tone accents (burnt orange, avocado, mustard)
@@ -29,6 +32,8 @@ A 70s-inspired Pomodoro timer built with Next.js (App Router), TypeScript, and T
 - **Daily stats**: completed (not skipped) focus sessions counted per local calendar day via `bumpToday()`, stored in `localStorage['pomodoro-stats']` as `{date,count}`; shown as "N focus sessions today". `localDateString()` keys by local midnight.
 - **Keyboard (expanded)**: `S` = skip, `1/2/3` = modes, plus the original Space/R. Modifier combos (cmd/ctrl/alt) are ignored. Tabs/skip advertise keys via `title`.
 - **Alert volume**: `volume` (0–1) state, persisted to `localStorage['pomodoro-volume']`, passed to `playChime(mode, volume)` via `volumeRef`. Slider in the settings menu previews on pointer-up. `playChime` scales tone peak by volume and no-ops at 0.
+- **Dynamic favicon**: an effect draws a 64px canvas each tick — charcoal face + mode-colored remaining-time ring — and points a `<link id="dynamic-favicon" rel="icon">` at its data URL, so the tab icon mirrors the clock.
+- **Resume across reload**: a snapshot `{mode,timeLeft,isRunning,savedAt}` is written to `localStorage['pomodoro-session']` on every change. On load a restore effect (declared **before** the save effect, and after the durations loader so its `setTimeLeft` wins) rebuilds state — a running timer is resumed minus the elapsed gap; a paused one is restored as-is; a completed/expired one falls back to a fresh start.
 
 ## Controls layout
 Row is symmetric so Start/Pause sits centered: `[↺ reset]` · **[Start/Pause]** · `[» skip]`. Icon buttons share `.btn-icon`. The three preference toggles (sound/dark/auto) live in the floating settings menu, not the row.
@@ -44,7 +49,7 @@ Each pref has a paired load/save effect. Load (post-mount, declared first) avoid
 - **`tsc --noEmit` gotcha**: reports spurious errors from duplicate `.next/types/… 2.ts` files (macOS/sync artifacts, note the " 2" suffix) — these are not from your code. Dev server is `npm run dev -- -p <port>` (Next 16 + Turbopack).
 
 ## Next features to consider (discussed, not started)
-1. **Restore session across reload** — persist mode/timeLeft/running so a refresh doesn't lose an active session
-2. **Stats history** — beyond today's count: a small weekly view or streak
-3. **Chime tone choice** — pick the sound character, not just volume
+1. **Stats history** — beyond today's count: a small weekly view or streak
+2. **Chime tone choice** — pick the sound character, not just volume
+3. **Component tests** — add React Testing Library for interaction coverage (pure logic is already tested)
 
