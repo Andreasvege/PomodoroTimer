@@ -310,6 +310,37 @@ export default function PomodoroTimer() {
     localStorage.setItem('pomodoro-durations', JSON.stringify(durations))
   }, [durations])
 
+  // Resume an in-progress session after reload, subtracting the time elapsed
+  // while the page was gone. Declared before the save effect below so it reads
+  // storage before that effect can overwrite it. Must also run after the
+  // durations loader so its setTimeLeft is the one that wins on mount.
+  useEffect(() => {
+    const raw = localStorage.getItem('pomodoro-session')
+    if (!raw) return
+    try {
+      const s = JSON.parse(raw)
+      if (!s || !(s.mode in DEFAULT_DURATIONS) || typeof s.timeLeft !== 'number') return
+      if (s.isRunning && typeof s.savedAt === 'number') {
+        const remaining = s.timeLeft - (Date.now() - s.savedAt) / 1000
+        if (remaining > 0.5) {
+          setMode(s.mode)
+          setTimeLeft(Math.round(remaining))
+          setIsRunning(true)
+        }
+        return
+      }
+      if (s.timeLeft > 0) {
+        setMode(s.mode)
+        setTimeLeft(s.timeLeft)
+      }
+    } catch { /* ignore corrupt value */ }
+  }, [])
+  useEffect(() => {
+    try {
+      localStorage.setItem('pomodoro-session', JSON.stringify({ mode, timeLeft, isRunning, savedAt: Date.now() }))
+    } catch { /* storage unavailable */ }
+  }, [mode, timeLeft, isRunning])
+
   useEffect(() => {
     const saved = localStorage.getItem('pomodoro-round')
     if (saved !== null) {
