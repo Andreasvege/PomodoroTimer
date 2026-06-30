@@ -29,14 +29,14 @@ function getAudioContext(): AudioContext | null {
   return audioCtx
 }
 
-function playTone(ctx: AudioContext, freq: number, start: number, duration: number) {
+function playTone(ctx: AudioContext, freq: number, start: number, duration: number, volume: number) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = 'sine'
   osc.frequency.value = freq
 
   // Soft attack + decay to avoid clicks.
-  const peak = 0.18
+  const peak = 0.18 * volume
   gain.gain.setValueAtTime(0, start)
   gain.gain.linearRampToValueAtTime(peak, start + 0.02)
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
@@ -57,15 +57,17 @@ export function warmUpAudio(): void {
   }
 }
 
-export function playChime(mode: Mode): void {
+export function playChime(mode: Mode, volume = 1): void {
   try {
+    const v = Math.max(0, Math.min(1, volume))
+    if (v <= 0) return
     const ctx = getAudioContext()
     if (!ctx) return
     if (ctx.state === 'suspended') void ctx.resume()
     const [a, b] = TONES[mode]
     const t = ctx.currentTime
-    playTone(ctx, a, t, 0.32)
-    playTone(ctx, b, t + 0.18, 0.42)
+    playTone(ctx, a, t, 0.32, v)
+    playTone(ctx, b, t + 0.18, 0.42, v)
   } catch {
     // No audio available — stay silent.
   }

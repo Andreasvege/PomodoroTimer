@@ -179,6 +179,19 @@ body {
   background: var(--brown-lt);
   opacity: 0.5;
 }
+
+.settings-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+.settings-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--mustard);
+  cursor: pointer;
+}
 .settings-control {
   display: flex;
   align-items: center;

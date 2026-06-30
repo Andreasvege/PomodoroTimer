@@ -182,6 +182,7 @@ export default function PomodoroTimer() {
   const [roundLength, setRoundLength] = useState(DEFAULT_ROUND)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [todayCount, setTodayCount] = useState(0)
+  const [volume, setVolume] = useState(1)
   const todayDateRef = useRef('')
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -191,6 +192,7 @@ export default function PomodoroTimer() {
 
   // Refs mirror state so the auto-advance closure always sees current values.
   const alertsOnRef = useRef(alertsOn); alertsOnRef.current = alertsOn
+  const volumeRef = useRef(volume); volumeRef.current = volume
   const modeRef = useRef(mode); modeRef.current = mode
   const sessionsRef = useRef(sessions); sessionsRef.current = sessions
   const durationsRef = useRef(durations); durationsRef.current = durations
@@ -253,6 +255,17 @@ export default function PomodoroTimer() {
   useEffect(() => {
     localStorage.setItem('pomodoro-alerts', alertsOn ? '1' : '0')
   }, [alertsOn])
+
+  useEffect(() => {
+    const saved = localStorage.getItem('pomodoro-volume')
+    if (saved !== null) {
+      const v = parseFloat(saved)
+      if (Number.isFinite(v)) setVolume(Math.max(0, Math.min(1, v)))
+    }
+  }, [])
+  useEffect(() => {
+    localStorage.setItem('pomodoro-volume', String(volume))
+  }, [volume])
 
   useEffect(() => {
     const saved = localStorage.getItem('pomodoro-theme')
@@ -330,7 +343,7 @@ export default function PomodoroTimer() {
   useEffect(() => {
     if (!flash) return
     if (alertsOnRef.current) {
-      playChime(mode)
+      playChime(mode, volumeRef.current)
       showNotification(mode)
     }
     const t = setTimeout(() => setFlash(false), 4000)
@@ -529,6 +542,19 @@ export default function PomodoroTimer() {
             <div className="settings-toggle-row">
               <span className="settings-toggle-label"><AutoIcon /> Auto-advance</span>
               <Toggle on={autoAdvance} onClick={() => setAutoAdvance(a => !a)} label="Auto-advance" />
+            </div>
+            <div className="settings-slider-row">
+              <span className="settings-toggle-label">Volume</span>
+              <input
+                className="settings-slider"
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(volume * 100)}
+                aria-label="Alert volume"
+                onChange={e => setVolume(parseInt(e.target.value, 10) / 100)}
+                onPointerUp={() => { if (alertsOn) playChime('work', volumeRef.current) }}
+              />
             </div>
             <div className="settings-divider" />
             <label className="settings-row">

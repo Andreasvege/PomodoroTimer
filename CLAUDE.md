@@ -23,7 +23,12 @@ A 70s-inspired Pomodoro timer built with Next.js (App Router), TypeScript, and T
 - **Audio warm-up** (`warmUpAudio` in `lib/alerts.ts`): resumes the `AudioContext` from the Start click (a user gesture) so auto-advance chimes — fired without a gesture — aren't blocked by the browser.
 - **Tab title countdown**: an effect sets `document.title` to `MM:SS · Label` while running, `✓ Label done` on completion, else `Pomodoro Timer`.
 - **Settings menu**: floating gear fixed to the viewport top-right (`.settings` is `position: fixed`, wraps gear + panel and holds `settingsRef`). Panel has toggles for **Sound**, **Dark mode**, **Auto-advance** (`Toggle` switch component), a divider, the long-break interval (`roundLength`, 2–8, replaces the old `SESSIONS_PER_ROUND` const; default `DEFAULT_ROUND`; persisted to `localStorage['pomodoro-round']`; session dots count follows it), and a "Reset progress" action. Closes on outside `mousedown` (checked against `settingsRef`) or Escape.
-- **Accessibility**: `role="status"` + `aria-live="polite"` on the status line announces "Complete"; `:focus-visible` outlines (burnt orange) on all buttons/inputs.
+- **Accessibility**: `role="status"` + `aria-live="polite"` on the status line announces "Complete"; `:focus-visible` outlines (burnt orange) on all buttons/inputs. Honors `prefers-reduced-motion` (drops glow pulse, tick nudge, completion flash, gear rotation, theme transitions).
+- **Responsive**: clock sizes to `min(486px, 86vw)`, SVG fills it, numerals use `clamp()`; a `max-width: 520px` query tightens spacing/padding.
+- **Screen wake lock**: `wakeLockRef` requests a screen lock while running, releases on pause/stop, re-acquires on `visibilitychange` (lock drops when the tab hides). Fails silently where unsupported.
+- **Daily stats**: completed (not skipped) focus sessions counted per local calendar day via `bumpToday()`, stored in `localStorage['pomodoro-stats']` as `{date,count}`; shown as "N focus sessions today". `localDateString()` keys by local midnight.
+- **Keyboard (expanded)**: `S` = skip, `1/2/3` = modes, plus the original Space/R. Modifier combos (cmd/ctrl/alt) are ignored. Tabs/skip advertise keys via `title`.
+- **Alert volume**: `volume` (0–1) state, persisted to `localStorage['pomodoro-volume']`, passed to `playChime(mode, volume)` via `volumeRef`. Slider in the settings menu previews on pointer-up. `playChime` scales tone peak by volume and no-ops at 0.
 
 ## Controls layout
 Row is symmetric so Start/Pause sits centered: `[↺ reset]` · **[Start/Pause]** · `[» skip]`. Icon buttons share `.btn-icon`. The three preference toggles (sound/dark/auto) live in the floating settings menu, not the row.
@@ -39,6 +44,7 @@ Each pref has a paired load/save effect. Load (post-mount, declared first) avoid
 - **`tsc --noEmit` gotcha**: reports spurious errors from duplicate `.next/types/… 2.ts` files (macOS/sync artifacts, note the " 2" suffix) — these are not from your code. Dev server is `npm run dev -- -p <port>` (Next 16 + Turbopack).
 
 ## Next features to consider (discussed, not started)
-1. **Long-break length already custom** — consider a settings panel instead of inline edit if more options pile up
-2. **Sound choice** — let the user pick the chime tone/volume
+1. **Restore session across reload** — persist mode/timeLeft/running so a refresh doesn't lose an active session
+2. **Stats history** — beyond today's count: a small weekly view or streak
+3. **Chime tone choice** — pick the sound character, not just volume
 
