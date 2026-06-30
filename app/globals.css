@@ -252,12 +252,12 @@ body {
 /* ─── Clock ─── */
 .clock-shell {
   position: relative;
-  width: 486px;
-  height: 486px;
+  width: min(486px, 86vw);
+  height: min(486px, 86vw);
   flex-shrink: 0;
   filter: drop-shadow(0 12px 34px rgba(42, 18, 8, 0.42));
 }
-.clock-shell svg { display: block; }
+.clock-shell svg { display: block; width: 100%; height: 100%; }
 
 .ambient-glow {
   animation: glow-pulse 2.4s ease-in-out infinite;
@@ -280,7 +280,7 @@ body {
 
 .time-numeral {
   font-family: var(--font-righteous), sans-serif;
-  font-size: 4.3rem;
+  font-size: clamp(2.6rem, 13vw, 4.3rem);
   font-weight: 400;
   color: #F0E0C0;
   line-height: 1;
@@ -333,7 +333,7 @@ body {
 }
 .time-edit {
   font-family: var(--font-righteous), sans-serif;
-  font-size: 4.3rem;
+  font-size: clamp(2.6rem, 13vw, 4.3rem);
   line-height: 1;
   width: 2.4em;
   text-align: center;
@@ -472,3 +472,13 @@ input:focus-visible,
   border-radius: 3px;
 }
 .btn-main:focus-visible { outline-offset: 4px; }
+
+/* ─── Small screens ─── */
+@media (max-width: 520px) {
+  .wrapper { gap: 1.1rem; padding: 1.5rem 1rem; }
+  .stripe-label { font-size: 0.7rem; letter-spacing: 0.22em; }
+  .btn-main { padding: 0.8rem clamp(1.8rem, 9vw, 3.5rem); font-size: 0.9rem; }
+  .controls { gap: 0.75rem; }
+  .settings { top: 0.6rem; right: 0.6rem; }
+  .time-sub { font-size: 0.5rem; }
+}
