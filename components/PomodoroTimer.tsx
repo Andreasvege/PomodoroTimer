@@ -189,6 +189,8 @@ export default function PomodoroTimer() {
   const skipBlurRef = useRef(false)
   const settingsRef = useRef<HTMLDivElement | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const faviconCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const faviconLinkRef = useRef<HTMLLinkElement | null>(null)
 
   // Refs mirror state so the auto-advance closure always sees current values.
   const alertsOnRef = useRef(alertsOn); alertsOnRef.current = alertsOn
@@ -338,6 +340,57 @@ export default function PomodoroTimer() {
     else if (isRunning) document.title = `${pad(mins)}:${pad(secs)} · ${cfg.label}`
     else document.title = 'Pomodoro Timer'
   }, [flash, isRunning, mins, secs, cfg.label])
+
+  // Draw a favicon that mirrors the clock: charcoal face + mode-colored
+  // remaining-time ring, so the tab icon reflects status at a glance.
+  useEffect(() => {
+    if (!faviconCanvasRef.current) faviconCanvasRef.current = document.createElement('canvas')
+    const canvas = faviconCanvasRef.current
+    const size = 64
+    canvas.width = size
+    canvas.height = size
+    const g = canvas.getContext('2d')
+    if (!g) return
+
+    const cx = size / 2
+    const cy = size / 2
+    const r = 24
+    const lw = 10
+    g.clearRect(0, 0, size, size)
+    g.beginPath()
+    g.arc(cx, cy, r + lw / 2, 0, Math.PI * 2)
+    g.fillStyle = '#1C1A18'
+    g.fill()
+    g.beginPath()
+    g.arc(cx, cy, r, 0, Math.PI * 2)
+    g.lineWidth = lw
+    g.strokeStyle = 'rgba(232,204,170,0.18)'
+    g.stroke()
+
+    const frac = flash ? 1 : Math.max(0, Math.min(1, timeLeft / total))
+    if (frac > 0) {
+      const start = -Math.PI / 2
+      g.beginPath()
+      g.arc(cx, cy, r, start, start + Math.PI * 2 * frac)
+      g.lineWidth = lw
+      g.lineCap = 'round'
+      g.strokeStyle = cfg.arc
+      g.stroke()
+    }
+
+    if (!faviconLinkRef.current) {
+      let link = document.querySelector<HTMLLinkElement>('link#dynamic-favicon')
+      if (!link) {
+        link = document.createElement('link')
+        link.id = 'dynamic-favicon'
+        link.rel = 'icon'
+        link.type = 'image/png'
+        document.head.appendChild(link)
+      }
+      faviconLinkRef.current = link
+    }
+    faviconLinkRef.current.href = canvas.toDataURL('image/png')
+  }, [timeLeft, total, flash, cfg.arc])
 
   // Session-end chime + notification.
   useEffect(() => {
