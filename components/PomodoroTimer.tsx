@@ -428,21 +428,30 @@ export default function PomodoroTimer() {
     }
   }, [isRunning])
 
-  // Keyboard: Space = start/pause, R = reset. Ignored while typing.
+  // Keyboard: Space start/pause, R reset, S skip, 1/2/3 modes. Ignored while typing.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.code === 'Space') {
         e.preventDefault()
         toggle()
       } else if (e.key === 'r' || e.key === 'R') {
         reset()
+      } else if (e.key === 's' || e.key === 'S') {
+        skip()
+      } else if (e.key === '1') {
+        changeMode('work')
+      } else if (e.key === '2') {
+        changeMode('shortBreak')
+      } else if (e.key === '3') {
+        changeMode('longBreak')
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [toggle, reset])
+  }, [toggle, reset, skip, changeMode])
 
   // Close the settings popover on outside click or Escape.
   useEffect(() => {
@@ -555,12 +564,13 @@ export default function PomodoroTimer() {
 
       {/* Mode selector */}
       <nav className="mode-nav">
-        {(Object.keys(MODE_CONFIG) as Mode[]).map(m => (
+        {(Object.keys(MODE_CONFIG) as Mode[]).map((m, i) => (
           <button
             key={m}
             onClick={() => changeMode(m)}
             className={`mode-tab${mode === m ? ' mode-tab--on' : ''}`}
             style={mode === m ? { '--tab-color': MODE_CONFIG[m].arc } as React.CSSProperties : {}}
+            title={`${MODE_CONFIG[m].label} (${i + 1})`}
           >
             {MODE_CONFIG[m].short}
           </button>
@@ -682,7 +692,7 @@ export default function PomodoroTimer() {
           className="btn-reset btn-icon"
           onClick={skip}
           aria-label="Skip to next session"
-          title="Skip to next session"
+          title="Skip to next session (S)"
         >
           <SkipIcon />
         </button>
