@@ -21,9 +21,15 @@ export const metadata: Metadata = {
   description: 'A 70s-inspired focus timer',
 }
 
+// Applies the saved theme before first paint so dark mode never flashes light.
+const themeScript = `(function(){try{var t=localStorage.getItem('pomodoro-theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){}})();`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${righteous.variable} ${spaceMono.variable}`}>
+    <html lang="en" className={`${righteous.variable} ${spaceMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   )

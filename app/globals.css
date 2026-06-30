@@ -178,6 +178,49 @@ body {
   transition: color 0.3s;
 }
 
+/* Click-to-edit minutes */
+.time-numeral--editable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.time-edit {
+  font-family: var(--font-righteous), sans-serif;
+  font-size: 4.3rem;
+  line-height: 1;
+  width: 2.4em;
+  text-align: center;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--orange);
+  color: #F0E0C0;
+  outline: none;
+  padding: 0;
+  pointer-events: auto;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.time-edit::-webkit-outer-spin-button,
+.time-edit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ─── Task label ─── */
+.task-input {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  width: min(82vw, 320px);
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--brown-lt);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.task-input::placeholder { color: var(--muted); opacity: 0.55; }
+.task-input:hover { border-color: var(--brown-md); }
+.task-input:focus { border-color: var(--orange); }
+
 /* ─── Controls ─── */
 .controls {
   display: flex;
@@ -205,10 +248,19 @@ body {
 }
 .btn-reset:active { transform: scale(0.9); }
 
-/* Bell matches the reset button; only the icon softens at rest, not the border. */
-.btn-alert svg { opacity: 0.87; transition: opacity 0.18s; }
-.btn-alert:hover svg,
-.btn-alert:active svg { opacity: 1; }
+/* Icon buttons match the reset button; only the icon softens at rest, not the border. */
+.btn-icon svg { opacity: 0.87; transition: opacity 0.18s; }
+.btn-icon:hover svg,
+.btn-icon:active svg { opacity: 1; }
+
+/* Auto-advance, when enabled, lights up in mustard like an active toggle. */
+.btn-auto--on {
+  border-color: var(--mustard);
+  color: var(--mustard);
+  background: color-mix(in srgb, var(--mustard) 12%, transparent);
+}
+.btn-auto--on:hover { border-color: var(--mustard); color: var(--mustard); }
+.btn-auto--on svg { opacity: 1; }
 
 .btn-main {
   font-family: var(--font-righteous), sans-serif;

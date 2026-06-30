@@ -5,7 +5,7 @@ import { playChime, showNotification, requestNotificationPermission } from '@/li
 
 type Mode = 'work' | 'shortBreak' | 'longBreak'
 
-const DURATIONS: Record<Mode, number> = {
+const DEFAULT_DURATIONS: Record<Mode, number> = {
   work: 25 * 60,
   shortBreak: 5 * 60,
   longBreak: 15 * 60,
@@ -24,6 +24,14 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
+}
+
+function isValidDurations(d: unknown): d is Record<Mode, number> {
+  if (!d || typeof d !== 'object') return false
+  const r = d as Record<string, unknown>
+  return ['work', 'shortBreak', 'longBreak'].every(
+    k => typeof r[k] === 'number' && Number.isFinite(r[k] as number) && (r[k] as number) > 0,
+  )
 }
 
 // Hugeicons-style line icons, drawn with currentColor so they inherit button state.
@@ -74,20 +82,53 @@ function ThemeIcon({ dark }: { dark: boolean }) {
   )
 }
 
+// Circular arrows — auto-advance between sessions.
+function AutoIcon() {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 9a8 8 0 0 1 13.5-3.4L20 8" />
+      <path d="M20 3.5V8h-4.5" />
+      <path d="M20 15a8 8 0 0 1-13.5 3.4L4 16" />
+      <path d="M4 20.5V16h4.5" />
+    </svg>
+  )
+}
+
 export default function PomodoroTimer() {
   const [mode, setMode] = useState<Mode>('work')
-  const [timeLeft, setTimeLeft] = useState(DURATIONS.work)
+  const [durations, setDurations] = useState<Record<Mode, number>>(DEFAULT_DURATIONS)
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_DURATIONS.work)
   const [isRunning, setIsRunning] = useState(false)
   const [sessions, setSessions] = useState(0)
   const [flash, setFlash] = useState(false)
   const [tickParity, setTickParity] = useState(false)
   const [alertsOn, setAlertsOn] = useState(true)
   const [dark, setDark] = useState(false)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const alertsOnRef = useRef(alertsOn)
-  alertsOnRef.current = alertsOn
+  const [autoAdvance, setAutoAdvance] = useState(false)
+  const [task, setTask] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [draftMin, setDraftMin] = useState('')
 
-  const total = DURATIONS[mode]
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const skipBlurRef = useRef(false)
+
+  // Refs mirror state so the auto-advance closure always sees current values.
+  const alertsOnRef = useRef(alertsOn); alertsOnRef.current = alertsOn
+  const modeRef = useRef(mode); modeRef.current = mode
+  const sessionsRef = useRef(sessions); sessionsRef.current = sessions
+  const durationsRef = useRef(durations); durationsRef.current = durations
+
+  const total = durations[mode]
   const progress = 1 - timeLeft / total
   const dashOffset = CIRCUMFERENCE * progress
   const cfg = MODE_CONFIG[mode]
@@ -122,27 +163,58 @@ export default function PomodoroTimer() {
     return stop
   }, [isRunning, stop, mode])
 
-  // Load persisted alert preference after mount (avoids hydration mismatch).
+  // ── Persistence: each pref loads after mount (avoids hydration mismatch),
+  //    then a paired effect writes it back on change. ──
   useEffect(() => {
     const saved = localStorage.getItem('pomodoro-alerts')
     if (saved !== null) setAlertsOn(saved === '1')
   }, [])
-
   useEffect(() => {
     localStorage.setItem('pomodoro-alerts', alertsOn ? '1' : '0')
   }, [alertsOn])
 
-  // Load persisted theme after mount (avoids hydration mismatch).
   useEffect(() => {
     const saved = localStorage.getItem('pomodoro-theme')
     if (saved !== null) setDark(saved === 'dark')
   }, [])
-
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
     localStorage.setItem('pomodoro-theme', dark ? 'dark' : 'light')
   }, [dark])
 
+  useEffect(() => {
+    const saved = localStorage.getItem('pomodoro-auto')
+    if (saved !== null) setAutoAdvance(saved === '1')
+  }, [])
+  useEffect(() => {
+    localStorage.setItem('pomodoro-auto', autoAdvance ? '1' : '0')
+  }, [autoAdvance])
+
+  useEffect(() => {
+    const saved = localStorage.getItem('pomodoro-task')
+    if (saved !== null) setTask(saved)
+  }, [])
+  useEffect(() => {
+    localStorage.setItem('pomodoro-task', task)
+  }, [task])
+
+  useEffect(() => {
+    const saved = localStorage.getItem('pomodoro-durations')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (isValidDurations(parsed)) {
+          setDurations(parsed)
+          setTimeLeft(parsed[modeRef.current])
+        }
+      } catch { /* ignore corrupt value */ }
+    }
+  }, [])
+  useEffect(() => {
+    localStorage.setItem('pomodoro-durations', JSON.stringify(durations))
+  }, [durations])
+
+  // Session-end chime + notification.
   useEffect(() => {
     if (!flash) return
     if (alertsOnRef.current) {
@@ -153,26 +225,63 @@ export default function PomodoroTimer() {
     return () => clearTimeout(t)
   }, [flash, mode])
 
-  function changeMode(m: Mode) {
+  const changeMode = useCallback((m: Mode) => {
     stop()
     setMode(m)
     setIsRunning(false)
-    setTimeLeft(DURATIONS[m])
+    setTimeLeft(durations[m])
     setFlash(false)
-  }
+    setEditing(false)
+  }, [stop, durations])
 
-  function toggle() {
+  const toggle = useCallback(() => {
     if (timeLeft === 0) return
     setIsRunning(r => !r)
     setFlash(false)
-  }
+  }, [timeLeft])
 
-  function reset() {
+  const reset = useCallback(() => {
     stop()
     setIsRunning(false)
-    setTimeLeft(DURATIONS[mode])
+    setTimeLeft(durations[mode])
     setFlash(false)
-  }
+    setEditing(false)
+  }, [stop, durations, mode])
+
+  // Advance to the next session in the Pomodoro cycle and auto-start it.
+  const advance = useCallback(() => {
+    const completed = modeRef.current
+    const next: Mode = completed === 'work'
+      ? (sessionsRef.current % SESSIONS_PER_ROUND === 0 ? 'longBreak' : 'shortBreak')
+      : 'work'
+    setMode(next)
+    setTimeLeft(durationsRef.current[next])
+    setFlash(false)
+    setIsRunning(true)
+  }, [])
+
+  // When a session ends and auto-advance is on, roll into the next one.
+  useEffect(() => {
+    if (!flash || !autoAdvance) return
+    const t = setTimeout(advance, 1600)
+    return () => clearTimeout(t)
+  }, [flash, autoAdvance, advance])
+
+  // Keyboard: Space = start/pause, R = reset. Ignored while typing.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (e.code === 'Space') {
+        e.preventDefault()
+        toggle()
+      } else if (e.key === 'r' || e.key === 'R') {
+        reset()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggle, reset])
 
   function toggleAlerts() {
     setAlertsOn(on => {
@@ -180,6 +289,28 @@ export default function PomodoroTimer() {
       if (next) void requestNotificationPermission()
       return next
     })
+  }
+
+  function startEdit() {
+    if (isRunning) return
+    skipBlurRef.current = false
+    setDraftMin(String(Math.round(durations[mode] / 60)))
+    setEditing(true)
+  }
+
+  function commitEdit() {
+    if (skipBlurRef.current) {
+      skipBlurRef.current = false
+      setEditing(false)
+      return
+    }
+    setEditing(false)
+    const m = parseInt(draftMin, 10)
+    if (!Number.isFinite(m)) return
+    const clamped = Math.min(99, Math.max(1, m))
+    const secs = clamped * 60
+    setDurations(d => ({ ...d, [mode]: secs }))
+    setTimeLeft(secs)
   }
 
   return (
@@ -192,7 +323,7 @@ export default function PomodoroTimer() {
 
       {/* Mode selector */}
       <nav className="mode-nav">
-        {(Object.keys(DURATIONS) as Mode[]).map(m => (
+        {(Object.keys(MODE_CONFIG) as Mode[]).map(m => (
           <button
             key={m}
             onClick={() => changeMode(m)}
@@ -256,35 +387,76 @@ export default function PomodoroTimer() {
 
         {/* Time overlay */}
         <div className="time-overlay">
-          <div
-            className={`time-numeral${flash ? ' time-flash' : ''}${isRunning ? (tickParity ? ' time-tick-a' : ' time-tick-b') : ''}`}
-            style={{ color: flash ? cfg.arc : undefined }}
-          >
-            <span className="digit">{pad(mins)[0]}</span>
-            <span className="digit">{pad(mins)[1]}</span>
-            <span className="colon">:</span>
-            <span className="digit">{pad(secs)[0]}</span>
-            <span className="digit">{pad(secs)[1]}</span>
-          </div>
+          {editing ? (
+            <input
+              className="time-edit"
+              type="number"
+              min={1}
+              max={99}
+              value={draftMin}
+              autoFocus
+              aria-label="Minutes"
+              onChange={e => setDraftMin(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') commitEdit()
+                else if (e.key === 'Escape') { skipBlurRef.current = true; setEditing(false) }
+              }}
+              onBlur={commitEdit}
+            />
+          ) : (
+            <div
+              className={`time-numeral${flash ? ' time-flash' : ''}${isRunning ? (tickParity ? ' time-tick-a' : ' time-tick-b') : ''}${!isRunning ? ' time-numeral--editable' : ''}`}
+              style={{ color: flash ? cfg.arc : undefined }}
+              onClick={startEdit}
+              title={!isRunning ? 'Click to set minutes' : undefined}
+            >
+              <span className="digit">{pad(mins)[0]}</span>
+              <span className="digit">{pad(mins)[1]}</span>
+              <span className="colon">:</span>
+              <span className="digit">{pad(secs)[0]}</span>
+              <span className="digit">{pad(secs)[1]}</span>
+            </div>
+          )}
           <p className="time-sub" style={{ color: cfg.arc }}>
             {flash ? 'Complete' : cfg.label}
           </p>
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Task label */}
+      <input
+        className="task-input"
+        type="text"
+        value={task}
+        maxLength={60}
+        placeholder="What are you working on?"
+        aria-label="Current task"
+        onChange={e => setTask(e.target.value)}
+      />
+
+      {/* Controls — Start/Pause centered, two small buttons flanking each side */}
       <div className="controls">
-        <button className="btn-reset" onClick={reset} aria-label="Reset" title="Reset">↺</button>
+        <button
+          className={`btn-reset btn-icon${autoAdvance ? ' btn-auto--on' : ''}`}
+          onClick={() => setAutoAdvance(a => !a)}
+          aria-pressed={autoAdvance}
+          aria-label={autoAdvance ? 'Auto-advance on' : 'Auto-advance off'}
+          title={autoAdvance ? 'Auto-advance: on' : 'Auto-advance: off'}
+        >
+          <AutoIcon />
+        </button>
+        <button className="btn-reset" onClick={reset} aria-label="Reset" title="Reset (R)">↺</button>
         <button
           className={`btn-main${isRunning ? ' btn-main--active' : ''}${timeLeft === 0 ? ' btn-main--done' : ''}`}
           style={isRunning ? { '--btn-color': cfg.arc } as React.CSSProperties : {}}
           onClick={toggle}
           disabled={timeLeft === 0}
+          title="Start / Pause (Space)"
         >
           {isRunning ? 'Pause' : timeLeft === 0 ? 'Done' : 'Start'}
         </button>
         <button
-          className="btn-reset btn-alert"
+          className="btn-reset btn-icon"
           onClick={toggleAlerts}
           aria-label={alertsOn ? 'Mute alerts' : 'Unmute alerts'}
           title={alertsOn ? 'Alerts on' : 'Alerts off'}
@@ -292,7 +464,7 @@ export default function PomodoroTimer() {
           <BellIcon muted={!alertsOn} />
         </button>
         <button
-          className="btn-reset btn-alert"
+          className="btn-reset btn-icon"
           onClick={() => setDark(d => !d)}
           aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
           title={dark ? 'Light mode' : 'Dark mode'}
