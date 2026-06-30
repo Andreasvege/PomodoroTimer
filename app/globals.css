@@ -16,6 +16,20 @@
   --muted:     #7A5830;
 }
 
+/* ─── Dark mode — dusk earth tones, same 70s accents ─── */
+:root[data-theme="dark"] {
+  --bg:        #1A1512;
+  --surface:   #241D17;
+  --brown-dk:  #F0E0C0;
+  --brown-md:  #9A7C52;
+  --brown-lt:  #6A5436;
+  --cream:     #F0E0C0;
+  --text:      #ECDCBC;
+  --muted:     #B0926A;
+}
+
+html, body { transition: background-color 0.3s ease; }
+
 /* ─── Base ─── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 

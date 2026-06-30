@@ -48,6 +48,32 @@ function BellIcon({ muted }: { muted: boolean }) {
   )
 }
 
+// Sun when dark (click → go light); crescent moon when light (click → go dark).
+function ThemeIcon({ dark }: { dark: boolean }) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {dark ? (
+        <>
+          <circle cx={12} cy={12} r={4} />
+          <path d="M12 2.5V4M12 20v1.5M4.2 4.2l1.1 1.1M18.7 18.7l1.1 1.1M2.5 12H4M20 12h1.5M4.2 19.8l1.1-1.1M18.7 5.3l1.1-1.1" />
+        </>
+      ) : (
+        <path d="M20 13.5A8 8 0 0 1 10.5 4 6.5 6.5 0 1 0 20 13.5Z" />
+      )}
+    </svg>
+  )
+}
+
 export default function PomodoroTimer() {
   const [mode, setMode] = useState<Mode>('work')
   const [timeLeft, setTimeLeft] = useState(DURATIONS.work)
@@ -56,6 +82,7 @@ export default function PomodoroTimer() {
   const [flash, setFlash] = useState(false)
   const [tickParity, setTickParity] = useState(false)
   const [alertsOn, setAlertsOn] = useState(true)
+  const [dark, setDark] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertsOnRef = useRef(alertsOn)
   alertsOnRef.current = alertsOn
@@ -104,6 +131,17 @@ export default function PomodoroTimer() {
   useEffect(() => {
     localStorage.setItem('pomodoro-alerts', alertsOn ? '1' : '0')
   }, [alertsOn])
+
+  // Load persisted theme after mount (avoids hydration mismatch).
+  useEffect(() => {
+    const saved = localStorage.getItem('pomodoro-theme')
+    if (saved !== null) setDark(saved === 'dark')
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+    localStorage.setItem('pomodoro-theme', dark ? 'dark' : 'light')
+  }, [dark])
 
   useEffect(() => {
     if (!flash) return
@@ -252,6 +290,14 @@ export default function PomodoroTimer() {
           title={alertsOn ? 'Alerts on' : 'Alerts off'}
         >
           <BellIcon muted={!alertsOn} />
+        </button>
+        <button
+          className="btn-reset btn-alert"
+          onClick={() => setDark(d => !d)}
+          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={dark ? 'Light mode' : 'Dark mode'}
+        >
+          <ThemeIcon dark={dark} />
         </button>
       </div>
 
