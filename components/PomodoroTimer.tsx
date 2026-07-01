@@ -435,10 +435,11 @@ export default function PomodoroTimer() {
   const reset = useCallback(() => {
     stop()
     setIsRunning(false)
-    setTimeLeft(durations[mode])
+    setDurations(DEFAULT_DURATIONS)
+    setTimeLeft(DEFAULT_DURATIONS[mode])
     setFlash(false)
     setEditing(false)
-  }, [stop, durations, mode])
+  }, [stop, mode])
 
   // Advance to the next session in the Pomodoro cycle and auto-start it.
   const advance = useCallback(() => {
