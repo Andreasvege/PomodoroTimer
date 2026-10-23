@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pomodoro Timer
 
-## Getting Started
+A small Pomodoro timer with a 70s look — warm beige, earth tones and a chunky clock face. Built for fun, and because I wanted a timer I actually liked looking at.
 
-First, run the development server:
+<p align="center">
+  <img src="docs/screenshots/demo.gif" alt="Timer counting down, finishing a focus session and rolling into a break" width="380">
+</p>
+
+## Screenshots
+
+| Light | Dark |
+| :---: | :---: |
+| <img src="docs/screenshots/light.png" alt="Light theme" width="400"> | <img src="docs/screenshots/settings.png" alt="Dark theme with the settings menu open" width="400"> |
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="Mobile layout" width="240">
+</p>
+
+## What it does
+
+- Focus, short break and long rest, with a long rest every 4th session (adjustable)
+- Click the time to change the duration
+- Optional auto-advance to the next session
+- A soft chime and a browser notification when a session ends
+- Dark mode
+- Keyboard shortcuts: `Space` start/pause, `R` reset, `S` skip, `1` `2` `3` switch mode
+- Remembers where you were if you reload the page
+- The tab title and favicon show the countdown
+
+## Running it locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open [localhost:3000](http://localhost:3000). Tests run with `npm test`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built with Next.js, TypeScript and Tailwind CSS. The chime is generated with the Web Audio API, so there are no sound files.
