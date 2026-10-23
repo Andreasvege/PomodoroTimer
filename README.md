@@ -1,39 +1,39 @@
 # Pomodoro Timer
 
-A small Pomodoro timer with a 70s look — warm beige, earth tones and a chunky clock face. Built for fun, and because I wanted a timer I actually liked looking at.
+En liten Pomodoro-timer i 70-tallsstil – varm beige, jordfarger og en solid urskive. Laget for moro skyld, og fordi jeg ville ha en timer jeg faktisk likte å se på.
 
 <p align="center">
-  <img src="docs/screenshots/demo.gif" alt="Timer counting down, finishing a focus session and rolling into a break" width="380">
+  <img src="docs/screenshots/demo.gif" alt="Timeren teller ned, fullfører en fokusøkt og går videre til pause" width="380">
 </p>
 
-## Screenshots
+## Skjermbilder
 
-| Light | Dark |
+| Lyst | Mørkt |
 | :---: | :---: |
-| <img src="docs/screenshots/light.png" alt="Light theme" width="400"> | <img src="docs/screenshots/settings.png" alt="Dark theme with the settings menu open" width="400"> |
+| <img src="docs/screenshots/light.png" alt="Lyst tema" width="400"> | <img src="docs/screenshots/settings.png" alt="Mørkt tema med innstillingsmenyen åpen" width="400"> |
 
 <p align="center">
-  <img src="docs/screenshots/mobile.png" alt="Mobile layout" width="240">
+  <img src="docs/screenshots/mobile.png" alt="Mobilvisning" width="240">
 </p>
 
-## What it does
+## Hva den gjør
 
-- Focus, short break and long rest, with a long rest every 4th session (adjustable)
-- Click the time to change the duration
-- Optional auto-advance to the next session
-- A soft chime and a browser notification when a session ends
-- Dark mode
-- Keyboard shortcuts: `Space` start/pause, `R` reset, `S` skip, `1` `2` `3` switch mode
-- Remembers where you were if you reload the page
-- The tab title and favicon show the countdown
+- Fokus, kort pause og lang pause, med lang pause hver 4. økt (kan justeres)
+- Klikk på tiden for å endre varigheten
+- Kan gå automatisk videre til neste økt
+- En rolig lyd og et varsel i nettleseren når en økt er ferdig
+- Mørk modus
+- Hurtigtaster: `Space` start/pause, `R` nullstill, `S` hopp over, `1` `2` `3` bytt modus
+- Husker hvor du var hvis du laster siden på nytt
+- Fanetittelen og favikonet viser nedtellingen
 
-## Running it locally
+## Kjøre lokalt
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open [localhost:3000](http://localhost:3000). Tests run with `npm test`.
+Åpne deretter [localhost:3000](http://localhost:3000). Testene kjøres med `npm test`.
 
-Built with Next.js, TypeScript and Tailwind CSS. The chime is generated with the Web Audio API, so there are no sound files.
+Laget med Next.js, TypeScript og Tailwind CSS. Lyden genereres med Web Audio API, så det finnes ingen lydfiler.
